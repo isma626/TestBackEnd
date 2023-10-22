@@ -22,27 +22,32 @@ mongoose.connect(uri,{ useNewUrlParser: true, useUnifiedTopology: true})
     .then(() => console.log('Base de datos Conectada'))
     .catch(e => console.log(e));
 
-/**
- * @openapi
- * /person:
- *  get:
- *      tags:
- *          - person
- *      responses:
- *          200:
- *              description: OK
- *              content:
- *                  application/json:
- *                      schema:
- *                          $ref: '#/model/person'
- *          5xx:
- *              description: Some server error
- * 
- */
+
 app.get('/', (req, res) =>{
     res.send('Api Test Person');
 });
 
+
+/**
+ * @swagger
+ * tags:
+ *   name: person
+ *   description: Consulta general de personas, Segundo punto del Test
+ * /person:
+ *   get:
+ *     summary: Consulta de personas
+ *     tags: [person]
+ *     responses:
+ *       200:
+ *         description: person.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/person'
+ *       500:
+ *         description: Some server error
+ *
+ */
 app.get('/person', async (req, res) =>{
     try {
         const arrayPersonDB = await Person.find();
@@ -53,6 +58,29 @@ app.get('/person', async (req, res) =>{
    
 })
 
+/**
+ * @swagger
+ * /person/{id}:
+ *   get:
+ *     summary: Consulta de personas por ID
+ *     tags: [person]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: id de la persona
+ *     responses:
+ *       200:
+ *         description: person.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/person'
+ *       404:
+ *         description: The person was not found
+ */
 app.get('/person/:id', async (req, res) =>{
     try {
         await Person.findOne({id: {$gte:req.params.id} })
@@ -69,6 +97,33 @@ app.get('/person/:id', async (req, res) =>{
     }   
 })
 
+/**
+ * @swagger
+ * /person:
+ *   post:
+ *     summary: Crear personas desde txt
+ *     tags: [person]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               # 'file' will be the field name in this multipart request
+ *               file:
+ *                 type: string
+ *                 format: base64
+ *     responses:
+ *       200:
+ *         description: Creacion de personas exitoso
+ *         contens:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/person'
+ *       500:
+ *         description: no se pudo crear las personas
+ */
 app.post('/person', upload.single('file'), (req, res) => {
     let personData = JSON.parse(toJson(req.file.buffer.toString('utf8')));
     let personDataOjb = toPerson(personData);
@@ -79,9 +134,45 @@ app.post('/person', upload.single('file'), (req, res) => {
             console.log(err.message);
           });
     }
-    res.status(200).json("guardado exitoso")
+    res.status(200).json(personDataOjb);
   });
- 
+
+/**
+ * @swagger
+ * tags:
+ *   name: array
+ *   description: Primer punto del test
+ * /array:
+ *   post:
+ *     summary: Mezcla dos listas numericas
+ *     tags: [array]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/arrays'
+ *     responses:
+ *       200:
+ *         description: Responde lista mezclada y ordenada.
+ *         contens:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/arrays'
+ *       500:
+ *         description: No se logro la mezcla
+ */ 
+app.post('/array', async (req, res) =>{
+    try {
+        let array1 = req.body.array1;
+        let array2 = req.body.array2;
+        res.status(200).json(mergeArray(array1,array2));
+    } catch (error) {
+        console.log(error);
+        res.status(500).json(error.message);        
+    }    
+});
+
 app.listen(port, ()=> {
     swagger(app,port);
     console.log(`Escuchando en puerto ${port}...`);
@@ -129,3 +220,63 @@ function toJson(csv){
     }
     return JSON.stringify(result);
 };
+
+function mergeArray(array1,array2){
+    let map =  new Map(array1.map(element => [element, element]));
+    let arrayEnd = [];
+    array2.forEach(b => {
+        map.set(b,b);
+    });
+    for (let key of map.keys()) {
+        arrayEnd.push(key);
+    }
+    return arrayEnd.sort(function(a,b) { return a - b } );
+}
+
+
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     person:
+ *       type: object
+ *       required:
+ *         - id
+ *         - name
+ *         - age
+ *         - gender
+ *       properties:
+ *         id:
+ *           type: number
+ *           description: Consecutivo 
+ *         name:
+ *           type: string
+ *           description: Nombre de la persona
+ *         age:
+ *           type: number
+ *           description: Edad de la persona
+ *         gender:
+ *           type: string
+ *           description: Genero de la persona
+ *       example:
+ *         id: 1
+ *         name: John
+ *         age: 25
+ *         gender: M
+ *     arrays:
+ *       type: object
+ *       required:
+ *         - array1
+ *         - array2
+ *       properties:
+ *         id:
+ *           type: array
+ *           description: lista numerica 1 
+ *         name:
+ *           type: array
+ *           description: lista numerica 1
+ *       example:
+ *         array1: [-10,22,333,42]
+ *         array2: [-11,5,22,41,42]
+ */
