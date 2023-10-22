@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const express = require('express');
 const multer = require('multer');
+const Person = require('./models/person');
+const swagger = require('./swagger');
+
 const app = express();
 const port = process.env.port || 80;
 
@@ -9,8 +12,6 @@ const user = 'jclavijo';
 const pass = '3meIaerNaD8v2gG5';
 const dbname = 'test'
 const uri = `mongodb+srv://${user}:${pass}@test1.rgslb3b.mongodb.net/${dbname}?retryWrites=true&w=majority`;
-
-const Person = require('./models/person');
 
 app.use(express.json());
 
@@ -21,7 +22,23 @@ mongoose.connect(uri,{ useNewUrlParser: true, useUnifiedTopology: true})
     .then(() => console.log('Base de datos Conectada'))
     .catch(e => console.log(e));
 
-
+/**
+ * @openapi
+ * /person:
+ *  get:
+ *      tags:
+ *          - person
+ *      responses:
+ *          200:
+ *              description: OK
+ *              content:
+ *                  application/json:
+ *                      schema:
+ *                          $ref: '#/model/person'
+ *          5xx:
+ *              description: Some server error
+ * 
+ */
 app.get('/', (req, res) =>{
     res.send('Api Test Person');
 });
@@ -65,7 +82,10 @@ app.post('/person', upload.single('file'), (req, res) => {
     res.status(200).json("guardado exitoso")
   });
  
-app.listen(port, ()=> console.log(`Escuchando en puerto ${port}...`));
+app.listen(port, ()=> {
+    swagger(app,port);
+    console.log(`Escuchando en puerto ${port}...`);
+});
 
 function toPerson(personData){
     let personDataOjb = [];
